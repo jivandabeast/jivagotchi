@@ -1,9 +1,12 @@
 #include <Arduino.h>
 #include <avr/sleep.h>
 #include <avr/wdt.h>
+#include <U8g2lib.h>
 
 // Define used pins
-#define ledPin 13
+
+// U8g2 Constructor
+U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 
 // Main Tamagotchi Class
 class tamagotchi {
@@ -41,6 +44,15 @@ volatile char sleepCnt = 0;
 int snacks_fed = 0;
 tamagotchi jiv;
 
+// Handle Bitmaps
+#define u8g_logo_width 16
+#define u8g_logo_height 16
+static unsigned char u8g_logo_bits[] = {
+  0x00, 0x00, 0x7c, 0x00, 0x82, 0x00, 0x82, 0x00,
+  0x82, 0x00, 0x82, 0x00, 0x82, 0x00, 0x7c, 0x3e,
+  0x00, 0x41, 0x80, 0x80, 0x80, 0x80, 0x80, 0x80,
+  0x80, 0x80, 0x80, 0x80, 0x00, 0x41, 0x00, 0x3e };
+
 // Define functions
 void passTime(tamagotchi& tama);
 void overUnder(tamagotchi& tama);
@@ -53,24 +65,31 @@ void doSleep();
 void setup() {
   Serial.begin(9600);
 
-  // Flash LED once
-  digitalWrite(ledPin, LOW);
-  pinMode(ledPin, OUTPUT);
+  u8g2.begin();
 
   Serial.println("Setup Complete");
 }
 
 void loop() {
-  passTime(jiv);
-  delay(500);
-  Serial.println("---");
-  overUnder(jiv);
-  delay(500);
-  Serial.println("---");
-  rightLeft(jiv);
-  jiv.print();
+  // passTime(jiv);
+  // delay(500);
+  // Serial.println("---");
+  // overUnder(jiv);
+  // delay(500);
+  // Serial.println("---");
+  // rightLeft(jiv);
+  // jiv.print();
+  u8g2.clearBuffer();					// clear the internal memory
+  delay(1000);
+  // u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
+  // u8g2.drawStr(0,10,"Hello World!");	// write something to the internal memory
+  // u8g2.sendBuffer();					// transfer internal memory to the display
+  u8g2.drawXBM( 0, 0, u8g_logo_width, u8g_logo_height, u8g_logo_bits);
+  u8g2.sendBuffer();
+  delay(1000); 
+  u8g2.clear(); 
 
-  doSleep();
+  // doSleep();
   Serial.println();
 }
 
