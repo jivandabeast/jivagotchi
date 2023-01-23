@@ -3,14 +3,11 @@
 #include <avr/wdt.h>
 
 // Define used pins
-#define ledPin 2
-
-// Define variables
-volatile char sleepCnt = 0;
-int snacks_fed = 0;
+#define ledPin 13
 
 // Main Tamagotchi Class
 class tamagotchi {
+  
   public:
     int hunger;
     int happy;
@@ -18,22 +15,40 @@ class tamagotchi {
     int level;
     bool health;
     bool soiled;
+    bool misbehave;
 
-    tamagotchi(String name) {
+    tamagotchi() {
       hunger = 50;
       happy = 100;
-      discipline = 0;
+      discipline = 100;
       level = 0;
       health = true;
       soiled = true;
     }
+
+    void print() {
+      Serial.println(happy);
+      Serial.println(hunger);
+      Serial.println(health);
+      Serial.println(discipline);
+      Serial.println(level);
+      Serial.println(soiled);
+    }
 };
 
+// Define variables
+volatile char sleepCnt = 0;
+int snacks_fed = 0;
+tamagotchi jiv;
+
 // Define functions
-void doBlink();
 void passTime(tamagotchi& tama);
 void overUnder(tamagotchi& tama);
 void rightLeft(tamagotchi& tama);
+void heal(tamagotchi& tama);
+void clean(tamagotchi& tama);
+void scold(tamagotchi& tama);
+void doSleep();
 
 void setup() {
   Serial.begin(9600);
@@ -42,13 +57,145 @@ void setup() {
   digitalWrite(ledPin, LOW);
   pinMode(ledPin, OUTPUT);
 
-  Serial.println('Setup Complete');
+  Serial.println("Setup Complete");
 }
 
 void loop() {
+  passTime(jiv);
+  delay(500);
+  Serial.println("---");
+  overUnder(jiv);
+  delay(500);
+  Serial.println("---");
+  rightLeft(jiv);
+  jiv.print();
 
-  doBlink();
+  doSleep();
+  Serial.println();
+}
 
+// When WatchDog timer causes µC to wake it comes here
+ISR (WDT_vect) {
+
+	// Turn off watchdog, we don't want it to do anything (like resetting this sketch)
+	wdt_disable();
+
+	// Increment the WDT interrupt count
+	sleepCnt++;
+
+	// Now we continue running the main Loop() just after we went to sleep
+}
+
+void passTime(tamagotchi& tama) {
+  Serial.println("Passing time");
+
+  if (tama.soiled) {
+    if (random(100) > 75) {
+      tama.health = false;
+    }
+  } else {
+    if (random(100) > 90) {
+      tama.soiled = false;
+    }
+  }
+
+  if (tama.happy <= 0) {
+    // call for attention
+    Serial.println("Make happy");
+  } else if (tama.hunger <= 0) {
+    // call for food
+    Serial.println("Feed pls");
+  } else if (random(tama.discipline) == tama.discipline) {
+    // call for food/attention regardless of the status
+    Serial.println("Needs discipline");
+  } else {
+    // If tama is full & happy, decrement those statuses
+    tama.happy -= 5;
+    tama.hunger -= 5;
+  }
+}
+
+void overUnder(tamagotchi& tama) {
+  Serial.println("Playing Over/Under");
+
+  // Set up the game
+  int first = random(1, 11);
+  int second = random(1, 11);
+  bool user_guess;
+
+  // Display first number
+  Serial.println(first);
+  
+  // Prompt for user input
+  // True: Higher
+  // False: Lower
+  Serial.println("Will the next number be higher or lower?");
+  user_guess = true;
+
+  // Show second number
+  Serial.println(second);
+
+  if ((first < second) && user_guess ) {
+    Serial.println("You were right!");
+  } else if (first == second) {
+    Serial.println("...that's gotta be cheating, right?");
+  } else {
+    Serial.println("Try again next time!");
+  }
+
+  // Set tama happiness level
+  tama.happy += 10;
+  Serial.print("Happiness set to ");
+  Serial.print(tama.happy);
+  Serial.println();
+}
+
+void rightLeft(tamagotchi& tama) {
+  Serial.println("Playing Right/Left");
+
+  // Set up the game
+  bool direction = random(0, 2);
+  bool choice;
+
+  // Prompt user for input
+  Serial.println("Which direction will they go?");
+  choice = false;
+
+  // Evaluate results
+  if (direction == choice) {
+    Serial.println("Congratulations!");
+  } else {
+    Serial.println("Too bad, so sad.");
+  }
+
+}
+
+void heal(tamagotchi& tama) {
+  if (!tama.health) {
+    Serial.println('Healing your tama!');
+    tama.health = true;
+  } else {
+    Serial.println('Tama is not sick!');
+  }
+}
+
+void scold(tamagotchi& tama) {
+  if (tama.misbehave) {
+    tama.misbehave = false;
+    tama.discipline += 25;
+  } else {
+    tama.happy -= 20;
+  }
+}
+
+void clean(tamagotchi& tama) {
+  if (tama.soiled) {
+    tama.soiled = false;
+    Serial.println('Tama is now clean!');
+  }
+}
+
+void doSleep() {
   // Disable the ADC (Analog to digital converter, pins A0 [14] to A5 [19])
 	static byte prevADCSRA = ADCSRA;
 	ADCSRA = 0;
@@ -65,7 +212,8 @@ void loop() {
 	sleep_enable()
 	;
 
-	while (sleepCnt < 4) {
+  // 8 seconds, (30 min * 60s)/8s = 225 loops
+	while (sleepCnt < 38) {
 
 		// Turn of Brown Out Detection (low voltage). This is automatically re-enabled upon timer interrupt
 		sleep_bod_disable();
@@ -78,11 +226,11 @@ void loop() {
 		// clear various "reset" flags
 		MCUSR = 0; 	// allow changes, disable reset
 		WDTCSR = bit (WDCE) | bit(WDE); // set interrupt mode and an interval
-		WDTCSR = bit (WDIE) | bit(WDP2) | bit(WDP1); //| bit(WDP0);    // set WDIE, and 1 second delay
+		WDTCSR = bit (WDIE) | bit(WDP3) | bit(WDP0); // set WDIE, and 8 second delay https://microcontrollerslab.com/arduino-watchdog-timer-tutorial/
 		wdt_reset();
 
 		// Send a message just to show we are about to sleep
-		Serial.println("Good night!");
+    Serial.print(".");
 		Serial.flush();
 
 		// Allow interrupts now
@@ -100,112 +248,11 @@ void loop() {
 	sleep_disable();
 
 	// Wakes up at this point when timer wakes up µC
-	Serial.println("I'm awake!");
+	Serial.print("-");
 
 	// Reset sleep counter
 	sleepCnt = 0;
 
 	// Re-enable ADC if it was previously running
 	ADCSRA = prevADCSRA;
-}
-
-// When WatchDog timer causes µC to wake it comes here
-ISR (WDT_vect) {
-
-	// Turn off watchdog, we don't want it to do anything (like resetting this sketch)
-	wdt_disable();
-
-	// Increment the WDT interrupt count
-	sleepCnt++;
-
-	// Now we continue running the main Loop() just after we went to sleep
-}
-
-void doBlink() {
-  digitalWrite(ledPin, HIGH);
-  delay(10);
-  digitalWrite(ledPin, LOW);
-  delay(200);
-  digitalWrite(ledPin, HIGH);
-  delay(10);
-  digitalWrite(ledPin, LOW);
-}
-
-void passTime(tamagotchi& tama) {
-  if (tama.soiled) {
-    if (random(100) > 75) {
-      tama.health = false;
-    }
-  } else {
-    if (random(100) > 90) {
-      tama.soiled = false;
-    }
-  }
-
-  if (tama.happy <= 0) {
-    // call for attention
-  } else if (tama.hunger <= 0) {
-    // call for food
-  } else if (random(tama.discipline) == tama.discipline) {
-    // call for food/attention regardless of the status
-  } else {
-    // If tama is full & happy, decrement those statuses
-    tama.happy -= 5;
-    tama.hunger -= 5;
-  }
-}
-
-void overUnder(tamagotchi& tama) {
-  Serial.println('Playing Over/Under');
-
-  // Set up the game
-  int first = random(1, 11);
-  int second = random(1, 11);
-  bool user_guess;
-
-  // Display first number
-  Serial.println(first);
-  
-  // Prompt for user input
-  // True: Higher
-  // False: Lower
-  Serial.println('Will the next number be higher or lower?');
-  user_guess = true;
-
-  // Show second number
-  Serial.println(second);
-
-  if ((first < second) && user_guess ) {
-    Serial.println('You were right!');
-  } else if (first == second) {
-    Serial.println("...that's gotta be cheating, right?");
-  } else {
-    Serial.println('Try again next time!');
-  }
-
-  // Set tama happiness level
-  tama.happy += 10;
-  Serial.print('Happiness set to ');
-  Serial.print(tama.happy);
-  Serial.println();
-}
-
-void rightLeft(tamagotchi& tama) {
-  Serial.println('Playing Right/Left');
-
-  // Set up the game
-  bool direction = random(0, 2);
-  bool choice;
-
-  // Prompt user for input
-  Serial.println('Which direction will they go?');
-  choice = false;
-
-  // Evaluate results
-  if (direction == choice) {
-    Serial.println("Congratulations!");
-  } else {
-    Serial.println('Too bad, so sad.');
-  }
-
 }
