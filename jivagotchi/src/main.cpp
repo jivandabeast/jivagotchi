@@ -45,8 +45,8 @@ int snacks_fed = 0;
 tamagotchi jiv;
 
 // Handle Bitmaps
-#define u8g_logo_width 16
-#define u8g_logo_height 16
+static const int u8g_logo_width = 16;
+static const int u8g_logo_height = 16;
 static unsigned char u8g_logo_bits[] = {
   0x00, 0x00, 0x7c, 0x00, 0x82, 0x00, 0x82, 0x00,
   0x82, 0x00, 0x82, 0x00, 0x82, 0x00, 0x7c, 0x3e,
@@ -54,57 +54,6 @@ static unsigned char u8g_logo_bits[] = {
   0x80, 0x80, 0x80, 0x80, 0x00, 0x41, 0x00, 0x3e };
 
 // Define functions
-void passTime(tamagotchi& tama);
-void overUnder(tamagotchi& tama);
-void rightLeft(tamagotchi& tama);
-void heal(tamagotchi& tama);
-void clean(tamagotchi& tama);
-void scold(tamagotchi& tama);
-void doSleep();
-
-void setup() {
-  Serial.begin(9600);
-
-  u8g2.begin();
-
-  Serial.println("Setup Complete");
-}
-
-void loop() {
-  // passTime(jiv);
-  // delay(500);
-  // Serial.println("---");
-  // overUnder(jiv);
-  // delay(500);
-  // Serial.println("---");
-  // rightLeft(jiv);
-  // jiv.print();
-  u8g2.clearBuffer();					// clear the internal memory
-  delay(1000);
-  // u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
-  // u8g2.drawStr(0,10,"Hello World!");	// write something to the internal memory
-  // u8g2.sendBuffer();					// transfer internal memory to the display
-  u8g2.drawXBM( 0, 0, u8g_logo_width, u8g_logo_height, u8g_logo_bits);
-  u8g2.sendBuffer();
-  delay(1000); 
-  u8g2.clear(); 
-
-  // doSleep();
-  Serial.println();
-}
-
-// When WatchDog timer causes µC to wake it comes here
-ISR (WDT_vect) {
-
-	// Turn off watchdog, we don't want it to do anything (like resetting this sketch)
-	wdt_disable();
-
-	// Increment the WDT interrupt count
-	sleepCnt++;
-
-	// Now we continue running the main Loop() just after we went to sleep
-}
-
 void passTime(tamagotchi& tama) {
   Serial.println("Passing time");
 
@@ -191,10 +140,10 @@ void rightLeft(tamagotchi& tama) {
 
 void heal(tamagotchi& tama) {
   if (!tama.health) {
-    Serial.println('Healing your tama!');
+    Serial.println("Healing your tama!");
     tama.health = true;
   } else {
-    Serial.println('Tama is not sick!');
+    Serial.println("Tama is not sick!");
   }
 }
 
@@ -210,7 +159,7 @@ void scold(tamagotchi& tama) {
 void clean(tamagotchi& tama) {
   if (tama.soiled) {
     tama.soiled = false;
-    Serial.println('Tama is now clean!');
+    Serial.println("Tama is now clean!");
   }
 }
 
@@ -275,3 +224,69 @@ void doSleep() {
 	// Re-enable ADC if it was previously running
 	ADCSRA = prevADCSRA;
 }
+
+void clearScreen() {
+  u8g2.clear();
+  u8g2.clearBuffer();
+}
+
+void printImage(int width, int height, unsigned char *pic, bool clear = true, int posx = 0, int posy = 0) {
+  if (clear) { 
+    clearScreen();
+  }
+  u8g2.drawXBM(posx, posy, width, height, pic);
+  u8g2.sendBuffer();
+}
+
+void printText(const char *text, bool clear = true, int posx = 0, int posy = 0) {
+  if (clear) {
+    clearScreen();
+  }
+  u8g2.setFont(u8g2_font_ncenB08_tr);
+  u8g2.drawStr(posx, posy, text);
+  u8g2.sendBuffer();
+}
+
+void setup() {
+  Serial.begin(9600);
+
+  u8g2.begin();
+
+  Serial.println("Setup Complete");
+}
+
+void loop() {
+  // passTime(jiv);
+  // delay(500);
+  // Serial.println("---");
+  // overUnder(jiv);
+  // delay(500);
+  // Serial.println("---");
+  // rightLeft(jiv);
+  // jiv.print();
+
+  // u8g2.setFont(u8g2_font_ncenB08_tr);	// choose a suitable font
+  // u8g2.drawStr(0,10,"Hello World!");	// write something to the internal memory
+  // u8g2.sendBuffer();					// transfer internal memory to the display
+
+  printImage(u8g_logo_width, u8g_logo_height, u8g_logo_bits);
+  delay(1000);
+  printText("Hello World", false, 0, 29);
+  delay(1000);
+
+  // doSleep();
+  Serial.println();
+}
+
+// When WatchDog timer causes µC to wake it comes here
+ISR (WDT_vect) {
+
+	// Turn off watchdog, we don't want it to do anything (like resetting this sketch)
+	wdt_disable();
+
+	// Increment the WDT interrupt count
+	sleepCnt++;
+
+	// Now we continue running the main Loop() just after we went to sleep
+}
+
