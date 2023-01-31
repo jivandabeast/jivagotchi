@@ -17,6 +17,9 @@
  * Pin Definitions
  */
 
+#define buttonA 2 
+#define buttonB 3
+#define buttonC 4
 
 /**
  * Tamagotchi Class
@@ -35,7 +38,7 @@ class tamagotchi {
 
     tamagotchi() {
       hunger = 50;
-      happy = 100;
+      happy = 50;
       discipline = 100;
       level = 1;
       health = true;
@@ -58,11 +61,19 @@ class tamagotchi {
 volatile char sleepCnt = 0;
 int snacks_fed = 0;
 tamagotchi jiv;
-U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
+// Set to 1 buffer page
+U8G2_SH1106_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 RTC_DS1307 rtc;
 bool pass_time, over_under, right_left, heal_tama, scold_tama, clean_tama;
 int ohappy, ohunger, odiscipline, olevel;
 bool ohealth, osoiled, omisbehave;
+const char* activities[5] = {
+  "Over Under",
+  "Right Left",
+  "Heal",
+  "Scold",
+  "Clean"
+};
 
 /**
  * Bitmaps
@@ -187,6 +198,53 @@ static const unsigned char level_4_idle_3_bits[] PROGMEM = {
  */
 
 /**
+ * Clear Screen
+ * Clears the OLED screen so that a new frame can be shown
+ */
+void clearScreen() {
+  u8g2.clear();
+  u8g2.clearBuffer();
+}
+
+/**
+ * Print Image
+ * Prints a bitmap image from flash memory
+ * 
+ * @param width   The height of the image
+ * @param height  The width of the image
+ * @param pic     A PROGMEM variable containing the bitmap of the image
+ * @param clear   OPTIONAL - A boolean, true to clear the screen false to keep it (Default: True)
+ * @param posx    OPTIONAL - X Position of the image to be drawn (Default: 0)
+ * @param posy    OPTIONAL - Y Position of the image to be drawn (Default: 0)
+ */
+void printImage(int width, int height, const unsigned char *pic, bool clear = true, int posx = 0, int posy = 0) {
+  if (clear) { 
+    clearScreen();
+  }
+  u8g2.drawXBMP(posx, posy, width, height, pic);
+  u8g2.sendBuffer();
+}
+
+/**
+ * Print Text
+ * Prints text onto the display
+ * 
+ * @param text    String to be printed
+ * @param clear   OPTIONAL - A boolean, true to clear the screen false to keep it (Default: True)
+ * @param posx    OPTIONAL - X Position of the image to be drawn (Default: 0)
+ * @param posy    OPTIONAL - Y Position of the image to be drawn (Default: 0)
+ */
+void printText(const char *text, bool clear = true, int posx = 0, int posy = 0) {
+  if (clear) {
+    clearScreen();
+  }
+  // u8g2_font_ncenB08_tr
+  u8g2.setFont(u8g2_font_ncenB08_tr);
+  u8g2.drawStr(posx, posy, text);
+  u8g2.sendBuffer();
+}
+
+/**
  * Processes the "life functions" of the tamagotchi (getting hungry, bored, bathroom, etc.)
  * This function lowers those values to facilitate gameplay
  * 
@@ -229,7 +287,8 @@ void passTime(tamagotchi& tama) {
  * @param tama  The tamagotchi object to be processed
  */
 void overUnder(tamagotchi& tama) {
-  // Serial.println("Playing Over/Under");
+  Serial.println("Playing Over/Under");
+  delay(1000);
 
   // Set up the game
   int first = random(1, 11);
@@ -238,15 +297,40 @@ void overUnder(tamagotchi& tama) {
 
   // Display first number
   Serial.println(first);
-  
+
+  char first_num[2];
+  sprintf(first_num, "%d", first);
+  printText(first_num, true, 0, 10);
+  printText("Up A", false, 0, 20);
+  printText("Low B", false, 0, 30);
+  // printText("Confirm C", false, 0, 40);
+
   // Prompt for user input
   // True: Higher
   // False: Lower
   // Serial.println("Will the next number be higher or lower?");
-  user_guess = true;
+
+  while (digitalRead(buttonC) == HIGH) {
+    if (digitalRead(buttonA) == LOW) {
+      user_guess = true;
+    } else if (digitalRead(buttonB) == LOW) {
+      user_guess = false;
+    }
+  }
 
   // Show second number
+  delay(1000);
   Serial.println(second);
+
+  // printText(first_num);
+  // if (user_guess) {
+  //   printText("You guessed OVER", false, 0, 20);
+  // } else {
+  //   printText("You guessed UNDER", false, 0, 20);
+  // }
+  char second_num[2];
+  sprintf(second_num, "%d", second);
+  printText(second_num, false, 0, 45);
 
   if ((first < second) && user_guess ) {
     // Serial.println("You were right!");
@@ -402,54 +486,11 @@ void doSleep() {
 	ADCSRA = prevADCSRA;
 }
 
-/**
- * Clear Screen
- * Clears the OLED screen so that a new frame can be shown
- */
-void clearScreen() {
-  u8g2.clear();
-  u8g2.clearBuffer();
-}
-
-/**
- * Print Image
- * Prints a bitmap image from flash memory
- * 
- * @param width   The height of the image
- * @param height  The width of the image
- * @param pic     A PROGMEM variable containing the bitmap of the image
- * @param clear   OPTIONAL - A boolean, true to clear the screen false to keep it (Default: True)
- * @param posx    OPTIONAL - X Position of the image to be drawn (Default: 0)
- * @param posy    OPTIONAL - Y Position of the image to be drawn (Default: 0)
- */
-void printImage(int width, int height, const unsigned char *pic, bool clear = true, int posx = 0, int posy = 0) {
-  if (clear) { 
-    clearScreen();
-  }
-  u8g2.drawXBMP(posx, posy, width, height, pic);
-  u8g2.sendBuffer();
-}
-
-/**
- * Print Text
- * Prints text onto the display
- * 
- * @param text    String to be printed
- * @param clear   OPTIONAL - A boolean, true to clear the screen false to keep it (Default: True)
- * @param posx    OPTIONAL - X Position of the image to be drawn (Default: 0)
- * @param posy    OPTIONAL - Y Position of the image to be drawn (Default: 0)
- */
-void printText(const char *text, bool clear = true, int posx = 0, int posy = 0) {
-  if (clear) {
-    clearScreen();
-  }
-  u8g2.setFont(u8g2_font_ncenB08_tr);
-  u8g2.drawStr(posx, posy, text);
-  u8g2.sendBuffer();
-}
-
 void setup() {
   Serial.begin(9600);
+
+  randomSeed(analogRead(A0));
+
   u8g2.begin();
   u8g2.clear();
   u8g2.clearBuffer();
@@ -459,16 +500,59 @@ void setup() {
   Serial.flush();
   while (1) delay(10);
   }
+
+  pinMode(buttonA, INPUT_PULLUP);
+  pinMode(buttonB, INPUT_PULLUP);
+  pinMode(buttonC, INPUT_PULLUP);
 }
 
 void loop() {
   DateTime now = rtc.now();
   Serial.println(now.unixtime());
 
+  if (digitalRead(buttonA) == LOW) {
+    delay(1000);
+    int i = 0;
+    printText(activities[i], true, 25, 25);
+    while (digitalRead(buttonC) == HIGH) {
+      if (digitalRead(buttonB) == LOW) {
+        if (i == 4) {
+          i = 0;
+        } else {
+          i++;
+        }
+        printText(activities[i], true, 25, 25);
+        delay(500);
+      } else if (digitalRead(buttonA) == LOW) {
+        if (i == 0) {
+          i = 4;
+        } else {
+          i--;
+        }
+        printText(activities[i], true, 25, 25);
+        delay(500);
+      }
+    }
+    switch(i) {
+      case 0:
+        over_under = true;
+      case 1:
+        right_left = true;
+      case 2:
+        heal_tama = true;
+      case 3:
+        scold_tama = true;
+      case 4:
+        clean_tama = true;
+    }
+    clearScreen();
+  }
+
   if (pass_time) {
     passTime(jiv);
   } else if (over_under) {
     overUnder(jiv);
+    over_under = false;
   } else if (right_left) {
     rightLeft(jiv);
   } else if (heal_tama) {
@@ -491,7 +575,7 @@ void loop() {
       // Serial.println("Happy");
       ohappy = jiv.happy;
       char happy[12];
-      snprintf(happy, sizeof(happy), "Health: %d%%", jiv.happy);
+      snprintf(happy, sizeof(happy), "Happy: %d%%", jiv.happy);
       printText(happy, false, 0, 35);
 
     } else if (jiv.hunger != ohunger) {
