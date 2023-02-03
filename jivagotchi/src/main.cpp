@@ -40,7 +40,7 @@ class tamagotchi {
       hunger = 50;
       happy = 50;
       discipline = 100;
-      level = 1;
+      level = 3;
       health = true;
       soiled = true;
     }
@@ -62,7 +62,7 @@ volatile char sleepCnt = 0;
 int snacks_fed = 0;
 tamagotchi jiv;
 // Set to 1 buffer page
-U8G2_SH1106_128X64_NONAME_1_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
+U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 RTC_DS1307 rtc;
 bool pass_time, over_under, right_left, heal_tama, scold_tama, clean_tama;
 int ohappy, ohunger, odiscipline, olevel;
@@ -244,6 +244,79 @@ void printText(const char *text, bool clear = true, int posx = 0, int posy = 0) 
   u8g2.sendBuffer();
 }
 
+void print_f_text(const __FlashStringHelper* text, bool clear = true, int posx = 0, int posy = 0) {
+  if (clear) {
+    clearScreen();
+  }
+  u8g2.setCursor(posx, posy);
+  u8g2.print(text);
+  u8g2.sendBuffer();
+}
+
+void print_stats(tamagotchi& tama, bool clear = true) {
+  if (clear) {
+    clearScreen();
+  }
+
+  if (true) {
+      ohappy = jiv.happy;
+      char happy[12];
+      snprintf(happy, sizeof(happy), "Happy: %d%%", jiv.happy);
+      printText(happy, false, 0, 35);
+
+    }
+    if (true) {
+      ohunger = jiv.hunger;
+      char hunger[12];
+      snprintf(hunger, sizeof(hunger), "Hunger: %d%%", jiv.hunger);
+      printText(hunger, false, 0, 45);
+
+    } 
+    if (true) {
+      odiscipline = jiv.discipline;
+      char discipline[16];
+      snprintf(discipline, sizeof(discipline), "Discipline: %d%%", jiv.discipline);
+      printText(discipline, false, 0, 55);
+
+    } 
+    if (true) {
+      olevel = jiv.level;
+      char level[12];
+      snprintf(level, sizeof(level), "%d", jiv.level);
+      printText(level, false, 20, 20);
+
+    } 
+    
+    // else if (jiv.health != ohealth) {
+    //   // Serial.println("Health");
+    //   ohealth = jiv.health;
+    //   if (jiv.health) {
+    //     // Healthy
+    //   } else {
+    //     // Not healthy
+    //   }
+    // } else if (jiv.soiled != osoiled) {
+    //   // Serial.println("Soiled");
+    //   osoiled = jiv.soiled;
+
+    //   if (jiv.soiled) {
+    //     // Soiled
+    //   } else {
+    //     // Not Soiled
+    //   }
+    // } else if (jiv.misbehave != omisbehave) {
+    //   // Serial.println("Misbehave");
+    //   omisbehave = jiv.misbehave;
+
+    //   if (jiv.misbehave){
+    //     // Misbehaving
+    //   } else {
+    //     // Not misbehaving
+    //   }
+    // }
+}
+
+
 /**
  * Processes the "life functions" of the tamagotchi (getting hungry, bored, bathroom, etc.)
  * This function lowers those values to facilitate gameplay
@@ -284,67 +357,58 @@ void passTime(tamagotchi& tama) {
  * Guessing whether the second of two random numbers between 1 - 10 will be higher or lower than the first
  * Playing the game will increase the happiness level of the tamagotchi
  * 
+ * TODO: Game splash screen?
+ * 
  * @param tama  The tamagotchi object to be processed
  */
 void overUnder(tamagotchi& tama) {
-  Serial.println("Playing Over/Under");
-  delay(1000);
-
   // Set up the game
   int first = random(1, 11);
   int second = random(1, 11);
   bool user_guess;
 
   // Display first number
-  Serial.println(first);
-
   char first_num[2];
   sprintf(first_num, "%d", first);
+
+  // Prompt for input
   printText(first_num, true, 0, 10);
-  printText("Up A", false, 0, 20);
-  printText("Low B", false, 0, 30);
-  // printText("Confirm C", false, 0, 40);
-
-  // Prompt for user input
-  // True: Higher
-  // False: Lower
-  // Serial.println("Will the next number be higher or lower?");
-
+  print_f_text(F("Up A"), false, 0, 20);
+  print_f_text(F("Low B"), false, 0, 30);
+  print_f_text(F("Confirm C"), false, 0, 40);
   while (digitalRead(buttonC) == HIGH) {
     if (digitalRead(buttonA) == LOW) {
       user_guess = true;
+      print_f_text(F("GUESS: OVER"), false, 0, 50);
     } else if (digitalRead(buttonB) == LOW) {
       user_guess = false;
+      print_f_text(F("GUESS: UNDER"), false, 0, 50);
     }
   }
 
-  // Show second number
-  delay(1000);
-  Serial.println(second);
-
-  // printText(first_num);
-  // if (user_guess) {
-  //   printText("You guessed OVER", false, 0, 20);
-  // } else {
-  //   printText("You guessed UNDER", false, 0, 20);
-  // }
+  // Evaluate and display results
   char second_num[2];
   sprintf(second_num, "%d", second);
-  printText(second_num, false, 0, 45);
-
   if ((first < second) && user_guess ) {
-    // Serial.println("You were right!");
+    printText(first_num, true, 0, 10);
+    printText(second_num, false, 0, 20);
+    print_f_text(F("POGCHAMP"), false, 0, 30);
   } else if (first == second) {
-    // Serial.println("...that's gotta be cheating, right?");
+    printText(first_num, true, 0, 10);
+    printText(second_num, false, 0, 20);
+    print_f_text(F("...no comment..."), false, 0, 30);
   } else {
-    // Serial.println("Try again next time!");
+    printText(first_num, true, 0, 10);
+    printText(second_num, false, 0, 20);
+    print_f_text(F("Sadge"), false, 0, 30);
   }
 
+  delay(500);
   // Set tama happiness level
   tama.happy += 10;
-  // Serial.print("Happiness set to ");
-  // Serial.print(tama.happy);
-  // Serial.println();
+  while (digitalRead(buttonC) == HIGH) {
+    print_f_text(F("C to close."), false, 0, 50);
+  }
 }
 
 /**
@@ -417,6 +481,46 @@ void clean(tamagotchi& tama) {
   if (tama.soiled) {
     tama.soiled = false;
     // Serial.println("Tama is now clean!");
+  }
+}
+
+void idle_ani(tamagotchi& tama) {
+  if (tama.level == 1) {
+    printImage(idle_width, idle_height, level_1_idle_0_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_1_idle_1_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_1_idle_2_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_1_idle_3_bits, false);
+    delay(40);
+  } else if (tama.level == 2) {
+    printImage(idle_width, idle_height, level_2_idle_0_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_2_idle_1_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_2_idle_2_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_2_idle_3_bits, false);
+    delay(40);
+  } else if (tama.level == 3) {
+    printImage(idle_width, idle_height, level_3_idle_0_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_3_idle_1_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_3_idle_2_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_3_idle_3_bits, false);
+    delay(40);
+  } else if (tama.level == 4) {
+    printImage(idle_width, idle_height, level_4_idle_0_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_4_idle_1_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_4_idle_2_bits, false);
+    delay(34);
+    printImage(idle_width, idle_height, level_4_idle_3_bits, false);
+    delay(40);
   }
 }
 
@@ -511,7 +615,7 @@ void loop() {
   Serial.println(now.unixtime());
 
   if (digitalRead(buttonA) == LOW) {
-    delay(1000);
+    delay(100);
     int i = 0;
     printText(activities[i], true, 25, 25);
     while (digitalRead(buttonC) == HIGH) {
@@ -536,14 +640,19 @@ void loop() {
     switch(i) {
       case 0:
         over_under = true;
+        break;
       case 1:
         right_left = true;
+        break;
       case 2:
         heal_tama = true;
+        break;
       case 3:
         scold_tama = true;
+        break;
       case 4:
         clean_tama = true;
+        break;
     }
     clearScreen();
   }
@@ -553,6 +662,7 @@ void loop() {
   } else if (over_under) {
     overUnder(jiv);
     over_under = false;
+    print_stats(jiv);
   } else if (right_left) {
     rightLeft(jiv);
   } else if (heal_tama) {
@@ -562,45 +672,33 @@ void loop() {
   } else if (clean_tama) {
     clean(jiv);
   } else {
-    printImage(idle_width, idle_height, level_1_idle_0_bits, false);
-    delay(34);
-    printImage(idle_width, idle_height, level_1_idle_1_bits, false);
-    delay(34);
-    printImage(idle_width, idle_height, level_1_idle_2_bits, false);
-    delay(34);
-    printImage(idle_width, idle_height, level_1_idle_3_bits, false);
-    delay(40);
+    idle_ani(jiv);
 
     if (jiv.happy != ohappy) {
-      // Serial.println("Happy");
       ohappy = jiv.happy;
       char happy[12];
       snprintf(happy, sizeof(happy), "Happy: %d%%", jiv.happy);
       printText(happy, false, 0, 35);
 
     } else if (jiv.hunger != ohunger) {
-      // Serial.println("Hungry");
       ohunger = jiv.hunger;
       char hunger[12];
       snprintf(hunger, sizeof(hunger), "Hunger: %d%%", jiv.hunger);
       printText(hunger, false, 0, 45);
 
     } else if (jiv.discipline != odiscipline) {
-      // Serial.println("Discipline");
       odiscipline = jiv.discipline;
       char discipline[16];
       snprintf(discipline, sizeof(discipline), "Discipline: %d%%", jiv.discipline);
       printText(discipline, false, 0, 55);
 
     } else if (jiv.level != olevel) {
-      // Serial.println("Level");
       olevel = jiv.level;
       char level[12];
       snprintf(level, sizeof(level), "%d", jiv.level);
       printText(level, false, 20, 20);
 
     } else if (jiv.health != ohealth) {
-      // Serial.println("Health");
       ohealth = jiv.health;
       if (jiv.health) {
         // Healthy
@@ -608,7 +706,6 @@ void loop() {
         // Not healthy
       }
     } else if (jiv.soiled != osoiled) {
-      // Serial.println("Soiled");
       osoiled = jiv.soiled;
 
       if (jiv.soiled) {
@@ -617,7 +714,6 @@ void loop() {
         // Not Soiled
       }
     } else if (jiv.misbehave != omisbehave) {
-      // Serial.println("Misbehave");
       omisbehave = jiv.misbehave;
 
       if (jiv.misbehave){
