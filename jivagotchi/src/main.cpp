@@ -43,6 +43,7 @@ class tamagotchi {
       level = 1;
       health = true;
       soiled = true;
+      misbehave = true;
     }
 
     void print() {
@@ -444,8 +445,9 @@ void overUnder(tamagotchi& tama) {
   tama.happy += 10;
   changed = true;
   check_bal(tama);
+  print_f_text(F("C to close."), false, 0, 50);
   while (digitalRead(buttonC) == HIGH) {
-    print_f_text(F("C to close."), false, 0, 50);
+
   }
 }
 
@@ -511,8 +513,9 @@ void rightLeft(tamagotchi& tama) {
   tama.happy += 5;
   changed = true;
   check_bal(tama);
+  print_f_text(F("C to close."), false, 0, 50);
   while (digitalRead(buttonC) == HIGH) {
-    print_f_text(F("C to close."), false, 0, 50);
+
   }
 }
 
@@ -526,14 +529,20 @@ void heal(tamagotchi& tama) {
   if (!tama.health) {
     print_f_text(F("Healing..."), true, 10, 40);
     tama.health = true;
-    delay(5000);
+    delay(4000);
     print_f_text(F("Healed!"), true, 10, 40);
+    delay(1000);
   } else {
     print_f_text(F("Jiv is not sick!"), true, 10, 40);
-    changed = true;
     tama.happy -= 10;
-    check_bal(tama);
-    delay(5000);
+    delay(2000);
+  }
+  check_bal(tama);
+  changed = true;
+  delay(300);
+  print_f_text(F("C to continue"), false, 0, 60);
+  while (digitalRead(buttonC) == HIGH) {
+
   }
 }
 
@@ -546,10 +555,25 @@ void heal(tamagotchi& tama) {
  */
 void scold(tamagotchi& tama) {
   if (tama.misbehave) {
-    tama.misbehave = false;
+    print_f_text(F("Scolding..."), true, 10, 40);
     tama.discipline += 25;
+    tama.happy -= 5;
+    tama.misbehave = false;
+    delay(4000);
+    print_f_text(F("Scolded!"), true, 10, 40);
+    delay(1000);
   } else {
+    print_f_text(F("Jiv isn't misbehaving"), true, 0, 30);
+    delay(1000);
+    print_f_text(F("... :( ..."), false, 20, 40);
     tama.happy -= 20;
+  }
+  check_bal(tama);
+  changed = true;
+  delay(300);
+  print_f_text(F("C to continue"), false, 0, 60);
+  while (digitalRead(buttonC) == HIGH) {
+
   }
 }
 
