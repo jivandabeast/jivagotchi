@@ -69,13 +69,10 @@ class tamagotchi {
 volatile char sleepCnt = 0;
 int snacks_fed = 0;
 tamagotchi jiv;
-// Set to 1 buffer page
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 RTC_DS1307 rtc;
 bool pass_time, over_under, right_left, heal_tama, scold_tama, clean_tama;
 bool changed = true;
-// int ohappy, ohunger, odiscipline, olevel;
-// bool ohealth, osoiled, omisbehave;
 const char* activities[5] = {
   "Over Under",
   "Right Left",
@@ -219,12 +216,12 @@ void clearScreen() {
  * Print Image
  * Prints a bitmap image from flash memory
  * 
- * @param width   The height of the image
- * @param height  The width of the image
- * @param pic     A PROGMEM variable containing the bitmap of the image
- * @param clear   OPTIONAL - A boolean, true to clear the screen false to keep it (Default: True)
- * @param posx    OPTIONAL - X Position of the image to be drawn (Default: 0)
- * @param posy    OPTIONAL - Y Position of the image to be drawn (Default: 0)
+ * @param   width   The height of the image
+ * @param   height  The width of the image
+ * @param   pic     A PROGMEM variable containing the bitmap of the image
+ * @param   clear   OPTIONAL - A boolean, true to clear the screen false to keep it (Default: True)
+ * @param   posx    OPTIONAL - X Position of the image to be drawn (Default: 0)
+ * @param   posy    OPTIONAL - Y Position of the image to be drawn (Default: 0)
  */
 void printImage(int width, int height, const unsigned char *pic, bool clear = true, int posx = 0, int posy = 0) {
   if (clear) { 
@@ -238,10 +235,10 @@ void printImage(int width, int height, const unsigned char *pic, bool clear = tr
  * Print Text
  * Prints text onto the display
  * 
- * @param text    String to be printed
- * @param clear   OPTIONAL - A boolean, true to clear the screen false to keep it (Default: True)
- * @param posx    OPTIONAL - X Position of the image to be drawn (Default: 0)
- * @param posy    OPTIONAL - Y Position of the image to be drawn (Default: 0)
+ * @param   text    String to be printed
+ * @param   clear   OPTIONAL - A boolean, true to clear the screen false to keep it (Default: True)
+ * @param   posx    OPTIONAL - X Position of the image to be drawn (Default: 0)
+ * @param   posy    OPTIONAL - Y Position of the image to be drawn (Default: 0)
  */
 void printText(const char *text, bool clear = true, int posx = 0, int posy = 0) {
   if (clear) {
@@ -253,6 +250,15 @@ void printText(const char *text, bool clear = true, int posx = 0, int posy = 0) 
   u8g2.sendBuffer();
 }
 
+/**
+ * Print F() Style Text
+ * Because SRAM is a valuable resource
+ * 
+ * @param   text    The F() string
+ * @param   clear   Whether or not to clear the screen before printing
+ * @param   posx    X Position for printing
+ * @param   posy    Y Position for printing
+ */
 void print_f_text(const __FlashStringHelper* text, bool clear = true, int posx = 0, int posy = 0) {
   if (clear) {
     clearScreen();
@@ -262,34 +268,37 @@ void print_f_text(const __FlashStringHelper* text, bool clear = true, int posx =
   u8g2.sendBuffer();
 }
 
+/**
+ * Print Tama Stats
+ * Displays tama data on the screen
+ * 
+ * @param   tama    Tamagotchi object containing requested data
+ * @param   clear   Whether or not to clear the screen before displaying
+ */
 void print_stats(tamagotchi& tama, bool clear = true) {
   if (clear) {
     clearScreen();
   }
 
   if (true) {
-      // ohappy = tama.happy;
       char happy[12];
       snprintf(happy, sizeof(happy), "Happy: %d%%", tama.happy);
       printText(happy, false, 0, 35);
 
     }
     if (true) {
-      // ohunger = tama.hunger;
       char hunger[12];
       snprintf(hunger, sizeof(hunger), "Hunger: %d%%", tama.hunger);
       printText(hunger, false, 0, 45);
 
     } 
     if (true) {
-      // odiscipline = tama.discipline;
       char discipline[16];
       snprintf(discipline, sizeof(discipline), "Discipline: %d%%", tama.discipline);
       printText(discipline, false, 0, 55);
 
     } 
     if (true) {
-      // olevel = tama.level;
       char level[12];
       snprintf(level, sizeof(level), "%d", tama.level);
       printText(level, false, 20, 20);
@@ -325,12 +334,11 @@ void print_stats(tamagotchi& tama, bool clear = true) {
     // }
 }
 
-
 /**
  * Processes the "life functions" of the tamagotchi (getting hungry, bored, bathroom, etc.)
  * This function lowers those values to facilitate gameplay
  * 
- * @param tama  The tamagotchi object to be processed
+ * @param   tama    The tamagotchi object to be processed
  */
 void passTime(tamagotchi& tama) {
   // Serial.println("Passing time");
@@ -361,6 +369,12 @@ void passTime(tamagotchi& tama) {
   }
 }
 
+/**
+ * Tama Balance Check
+ * Make sure that certain tama values do not exceed/drop below their range
+ * 
+ * @param   tama    The tamagotchi object to be checked
+ */
 void check_bal(tamagotchi& tama) {
   if (tama.hunger > 100) {
     tama.hunger = 100;
@@ -396,7 +410,7 @@ void check_bal(tamagotchi& tama) {
  * 
  * TODO: Game splash screen?
  * 
- * @param tama  The tamagotchi object to be processed
+ * @param   tama    The tamagotchi object to be processed
  */
 void overUnder(tamagotchi& tama) {
   // Set up the game
@@ -458,7 +472,7 @@ void overUnder(tamagotchi& tama) {
  * 
  * TODO: Game splash screen?
  * 
- * @param tama  The tamagotchi object to be processed
+ * @param   tama    The tamagotchi object to be processed
  */
 void rightLeft(tamagotchi& tama) {
   // Set up the game
@@ -523,7 +537,7 @@ void rightLeft(tamagotchi& tama) {
  * Healing the sickness of a tamagotchi
  * When a tamagotchi is sick, they will need to be given "medicine" to become healthy again
  * 
- * @param tama  The tamagotchi object to be processed
+ * @param   tama    The tamagotchi object to be processed
  */
 void heal(tamagotchi& tama) {
   if (!tama.health) {
@@ -551,7 +565,7 @@ void heal(tamagotchi& tama) {
  * When a tamagotchi is misbehaving, they will need to be disciplined 
  * Doing so increases the discipline meter
  * 
- * @param tama  The tamagotchi object to be processed
+ * @param   tama    The tamagotchi object to be processed
  */
 void scold(tamagotchi& tama) {
   if (tama.misbehave) {
@@ -581,15 +595,33 @@ void scold(tamagotchi& tama) {
  * Cleaning excrement
  * When a tamagotchi poops, someone has to be the shit scraper
  * 
- * @param tama  The tamagotchi object to be processed
+ * @param   tama    The tamagotchi object to be processed
  */
 void clean(tamagotchi& tama) {
-  if (tama.soiled) {
+    if (tama.soiled) {
+    print_f_text(F("Cleaning..."), true, 10, 40);
+    tama.happy += 20;
     tama.soiled = false;
-    // Serial.println("Tama is now clean!");
+    delay(2000);
+    print_f_text(F("Cleaned!"), true, 10, 40);
+  } else {
+    print_f_text(F("Jiv didn't poo!"), true, 0, 30);
+  }
+  check_bal(tama);
+  changed = true;
+  delay(300);
+  print_f_text(F("C to continue"), false, 0, 60);
+  while (digitalRead(buttonC) == HIGH) {
+
   }
 }
 
+/**
+ * Idle Animations
+ * Make the tama do a lil dance in the corner lol
+ * 
+ * @param   tama    The tamagotchi to make dance
+ */
 void idle_ani(tamagotchi& tama) {
   if (tama.level == 1) {
     printImage(idle_width, idle_height, level_1_idle_0_bits, false);
@@ -696,6 +728,10 @@ void doSleep() {
 	ADCSRA = prevADCSRA;
 }
 
+/**
+ * Setup Function
+ * Arduino managed, called only when the device powers on
+ */
 void setup() {
   Serial.begin(9600);
 
@@ -716,6 +752,15 @@ void setup() {
   pinMode(buttonC, INPUT_PULLUP);
 }
 
+/**
+ * Main Loop
+ * Arduino Managed, loops indefinitely after the setup function has completed
+ * 
+ * TODO: Write tama values to EEPROM
+ * TODO: Incorporate passage of time
+ * TODO: Automatic decrementing of stats
+ * TODO: Automatic low-power mode/sleep
+ */
 void loop() {
   DateTime now = rtc.now();
   // Serial.println(now.unixtime());
