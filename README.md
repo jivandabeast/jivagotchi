@@ -1,1 +1,2 @@
 # Jivagotchi
+An arduino tamagotchi
