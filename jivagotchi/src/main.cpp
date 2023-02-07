@@ -35,6 +35,7 @@ class tamagotchi {
     bool health;
     bool soiled;
     bool misbehave;
+    int snacks_fed;
 
     tamagotchi() {
       hunger = 50;
@@ -44,6 +45,7 @@ class tamagotchi {
       health = true;
       soiled = true;
       misbehave = true;
+      snacks_fed = 0;
     }
 
     void print() {
@@ -67,7 +69,7 @@ class tamagotchi {
  * Global Variables
  */
 volatile char sleepCnt = 0;
-int snacks_fed = 0;
+DateTime now;
 tamagotchi jiv;
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 RTC_DS1307 rtc;
@@ -335,41 +337,6 @@ void print_stats(tamagotchi& tama, bool clear = true) {
 }
 
 /**
- * Processes the "life functions" of the tamagotchi (getting hungry, bored, bathroom, etc.)
- * This function lowers those values to facilitate gameplay
- * 
- * @param   tama    The tamagotchi object to be processed
- */
-void passTime(tamagotchi& tama) {
-  // Serial.println("Passing time");
-
-  if (tama.soiled) {
-    if (random(100) > 75) {
-      tama.health = false;
-    }
-  } else {
-    if (random(100) > 90) {
-      tama.soiled = false;
-    }
-  }
-
-  if (tama.happy <= 0) {
-    // call for attention
-    // Serial.println("Make happy");
-  } else if (tama.hunger <= 0) {
-    // call for food
-    // Serial.println("Feed pls");
-  } else if (random(tama.discipline) == tama.discipline) {
-    // call for food/attention regardless of the status
-    // Serial.println("Needs discipline");
-  } else {
-    // If tama is full & happy, decrement those statuses
-    tama.happy -= 5;
-    tama.hunger -= 5;
-  }
-}
-
-/**
  * Tama Balance Check
  * Make sure that certain tama values do not exceed/drop below their range
  * 
@@ -401,6 +368,40 @@ void check_bal(tamagotchi& tama) {
   if (tama.level < 1) {
     tama.level = 1;
   }
+}
+
+/**
+ * Processes the "life functions" of the tamagotchi (getting hungry, bored, bathroom, etc.)
+ * This function lowers those values to facilitate gameplay
+ * 
+ * @param   tama    The tamagotchi object to be processed
+ */
+void passTime(tamagotchi& tama) {
+  if (tama.soiled) {
+    // if tama pooped, make it sick 25% of the time
+    if (random(100) > 75) {
+      tama.health = false;
+    }
+  } else {
+    // otherwise make it poop, 10% of the time
+    if (random(100) > 90) {
+      tama.soiled = true;
+    }
+  }
+
+  if ((tama.happy <= 0) || (tama.hunger <= 0) || (tama.snacks_fed > 5)) {
+    // Make tama sick if its happiness or hunger is 0, or if it ate too many snacks
+    tama.health == false;
+  } else if ((random(tama.discipline) == tama.discipline) && (tama.discipline < 100)) {
+    // Misbehave change based on the discipline level
+    tama.misbehave = true;
+  } else {
+    tama.happy -= 5;
+    tama.hunger -= 5;
+  }
+
+  changed = true;
+  check_bal(tama);
 }
 
 /**
@@ -616,6 +617,35 @@ void clean(tamagotchi& tama) {
   }
 }
 
+void feed(tamagotchi& tama) {
+  if (tama.misbehave) {
+    print_f_text(F("Tama refuses to eat!"), true, 10, 10);
+  } else {
+    print_f_text(F("Feed Tama:"), true, 10, 20);
+    print_f_text(F("A: Meal"), false, 10, 30);
+    print_f_text(F("B: Snack"), false, 10, 40);
+    while (buttonC == HIGH) {
+      if (buttonA == LOW) {
+        tama.hunger += 20;
+        tama.snacks_fed = 0;
+        print_f_text(F("Tama Fed!"), true, 10, 10);
+      }
+      if (buttonB == LOW) {
+        tama.hunger += 10;
+        tama.snacks_fed += 1;
+        tama.happy += 10;
+        print_f_text(F("Tama Fed"), true, 20, 10);
+      }
+    }
+  }
+  check_bal(tama);
+  changed = true;
+  print_f_text(F("C to continue"), 0, 50);
+  while (buttonC == HIGH) {
+
+  }
+}
+
 /**
  * Idle Animations
  * Make the tama do a lil dance in the corner lol
@@ -755,15 +785,15 @@ void setup() {
 /**
  * Main Loop
  * Arduino Managed, loops indefinitely after the setup function has completed
- * 
+ *
+ * TODO: Level Up (Maybe on a time schedule?)
  * TODO: Write tama values to EEPROM
  * TODO: Incorporate passage of time
  * TODO: Automatic decrementing of stats
  * TODO: Automatic low-power mode/sleep
  */
 void loop() {
-  DateTime now = rtc.now();
-  // Serial.println(now.unixtime());
+  // now = rtc.now();
 
   if (digitalRead(buttonA) == LOW) {
     delay(500);
