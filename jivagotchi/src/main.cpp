@@ -36,6 +36,7 @@ class tamagotchi {
     bool soiled;
     bool misbehave;
     int snacks_fed;
+    DateTime birth;
 
     tamagotchi() {
       hunger = 50;
@@ -69,18 +70,19 @@ class tamagotchi {
  * Global Variables
  */
 volatile char sleepCnt = 0;
-DateTime now;
+DateTime now, then;
 tamagotchi jiv;
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 RTC_DS1307 rtc;
-bool pass_time, over_under, right_left, heal_tama, scold_tama, clean_tama;
+bool pass_time, over_under, right_left, heal_tama, scold_tama, clean_tama, feed_tama;
 bool changed = true;
-const char* activities[5] = {
+const char* activities[6] = {
   "Over Under",
   "Right Left",
   "Heal",
   "Scold",
-  "Clean"
+  "Clean",
+  "Feed"
 };
 
 /**
@@ -599,7 +601,7 @@ void scold(tamagotchi& tama) {
  * @param   tama    The tamagotchi object to be processed
  */
 void clean(tamagotchi& tama) {
-    if (tama.soiled) {
+  if (tama.soiled) {
     print_f_text(F("Cleaning..."), true, 10, 40);
     tama.happy += 20;
     tama.soiled = false;
@@ -617,6 +619,13 @@ void clean(tamagotchi& tama) {
   }
 }
 
+/**
+ * Feed Tamagotchi
+ * Player can either feed tamagotchi snack or meal
+ * Misbehaving tamagotchis will refuse to eat
+ * 
+ * @param   tama    The tamagotchi object to be fed
+ */
 void feed(tamagotchi& tama) {
   if (tama.misbehave) {
     print_f_text(F("Tama refuses to eat!"), true, 10, 10);
@@ -624,24 +633,53 @@ void feed(tamagotchi& tama) {
     print_f_text(F("Feed Tama:"), true, 10, 20);
     print_f_text(F("A: Meal"), false, 10, 30);
     print_f_text(F("B: Snack"), false, 10, 40);
-    while (buttonC == HIGH) {
-      if (buttonA == LOW) {
+    while (digitalRead(buttonC) == HIGH) {
+      if (digitalRead(buttonA) == LOW) {
         tama.hunger += 20;
         tama.snacks_fed = 0;
         print_f_text(F("Tama Fed!"), true, 10, 10);
+        break;
       }
-      if (buttonB == LOW) {
+      if (digitalRead(buttonB) == LOW) {
         tama.hunger += 10;
         tama.snacks_fed += 1;
         tama.happy += 10;
         print_f_text(F("Tama Fed"), true, 20, 10);
+        break;
       }
     }
   }
   check_bal(tama);
   changed = true;
-  print_f_text(F("C to continue"), 0, 50);
-  while (buttonC == HIGH) {
+  delay(300);
+  print_f_text(F("C to continue"), false, 0, 50);
+  while (digitalRead(buttonC) == HIGH) {
+
+  }
+}
+
+/**
+ * Level Up
+ * Tamagotchi can only be levelled up when they are in good standing
+ * Not soiled, healthy, behaving, >75% hungry, >75% happy
+ * 
+ * @param   tama    The tamagotchi object to be levelled up
+ */
+void level_up(tamagotchi& tama) {
+  if (!jiv.soiled && jiv.health && !jiv.misbehave && (jiv.hunger > 75) && (jiv.happy > 75)) {
+    print_f_text(F("Leveling up....."), true, 20, 40);
+    delay(2000);
+    print_f_text(F("Leveled Up!"), true, 20, 40);
+    tama.level += 1;
+    tama.birth = rtc.now();
+    check_bal(tama);
+    changed = true;
+  } else {
+    print_f_text(F("Jiv is not able to be levelled up :("), true, 0, 30);
+  }
+
+  print_f_text(F("C to continue"), 0, 60);
+  while (digitalRead(buttonC) == HIGH) {
 
   }
 }
@@ -777,6 +815,9 @@ void setup() {
   while (1) delay(10);
   }
 
+  jiv.birth = rtc.now();
+  then = rtc.now();
+
   pinMode(buttonA, INPUT_PULLUP);
   pinMode(buttonB, INPUT_PULLUP);
   pinMode(buttonC, INPUT_PULLUP);
@@ -786,14 +827,23 @@ void setup() {
  * Main Loop
  * Arduino Managed, loops indefinitely after the setup function has completed
  *
- * TODO: Level Up (Maybe on a time schedule?)
  * TODO: Write tama values to EEPROM
- * TODO: Incorporate passage of time
- * TODO: Automatic decrementing of stats
  * TODO: Automatic low-power mode/sleep
+ * TODO: Decrement stats while asleep
  */
 void loop() {
-  // now = rtc.now();
+  now = rtc.now();
+
+  if (((now.unixtime() - jiv.birth.unixtime()) > 18000) && (jiv.level == 1)) {
+    // Level 1 -> Level 2, 4 Hours
+    level_up(jiv);
+  } else if (((now.unixtime() - jiv.birth.unixtime()) > 86400) && (jiv.level == 2)) {
+    // Level 2 -> Level 3, 1 Day
+    level_up(jiv);
+  } else if (((now.unixtime() - jiv.birth.unixtime()) > 172800) && (jiv.level == 3)) {
+    // Level 3 -> Level 4, 2 Days
+    level_up(jiv);
+  }
 
   if (digitalRead(buttonA) == LOW) {
     delay(500);
@@ -801,7 +851,7 @@ void loop() {
     printText(activities[i], true, 25, 25);
     while (digitalRead(buttonC) == HIGH) {
       if (digitalRead(buttonB) == LOW) {
-        if (i == 4) {
+        if (i == 5) {
           i = 0;
         } else {
           i++;
@@ -810,7 +860,7 @@ void loop() {
         delay(500);
       } else if (digitalRead(buttonA) == LOW) {
         if (i == 0) {
-          i = 4;
+          i = 5;
         } else {
           i--;
         }
@@ -834,13 +884,19 @@ void loop() {
       case 4:
         clean_tama = true;
         break;
+      case 5:
+        feed_tama = true;
+        break;
     }
     clearScreen();
   }
 
-  if (pass_time) {
+  if ((now.unixtime() - then.unixtime()) > 1800) {
+    // Pass time every 30 minutes
     passTime(jiv);
-  } else if (over_under) {
+  }
+  
+  if (over_under) {
     overUnder(jiv);
     over_under = false;
   } else if (right_left) {
@@ -855,6 +911,9 @@ void loop() {
   } else if (clean_tama) {
     clean(jiv);
     clean_tama = false;
+  } else if (feed_tama) {
+    feed(jiv);
+    feed_tama = false;
   } else {
     idle_ani(jiv);
     jiv.print();
@@ -864,6 +923,8 @@ void loop() {
       changed = false;
     }
   }
+
+  then = now;
 }
 
 /**
