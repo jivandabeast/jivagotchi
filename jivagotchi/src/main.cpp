@@ -71,20 +71,23 @@ class tamagotchi {
 /**
  * Global Variables
  */
-volatile char sleepCnt = 0;
-DateTime now, then;
+// volatile char sleepCnt = 0;
+DateTime now, then, last_action;
 tamagotchi jiv;
 U8G2_SH1106_128X64_NONAME_F_HW_I2C u8g2(U8G2_R0, /* reset=*/ U8X8_PIN_NONE);
 RTC_DS1307 rtc;
 bool pass_time, over_under, right_left, heal_tama, scold_tama, clean_tama, feed_tama;
 bool changed = true;
-const char* activities[6] = {
-  "Over Under",
-  "Right Left",
+bool night_sleep = false;
+bool sleep_tama = false;
+const char* activities[7] = {
+  "Up/Down",
+  "R/L",
   "Heal",
   "Scold",
   "Clean",
-  "Feed"
+  "Feed",
+  "Sleep"
 };
 
 /**
@@ -279,12 +282,15 @@ void print_f_text(const __FlashStringHelper* text, bool clear = true, int posx =
  * 
  * @param   tama    The tama to be saved
  */
-void write_eeprom(tamagotchi& tama) {
+void write_eeprom(tamagotchi& tama, bool screen = true) {
   int tama_address = 0;
-  print_f_text(F("Saving..."), true, 20, 20);
+  if (screen) {
+    print_f_text(F("Saving..."), true, 20, 20);
+  }
   EEPROM.put(tama_address, tama);
-  delay(300);
-  clearScreen();
+  if (screen) {
+    clearScreen();
+  }
 }
 
 /**
@@ -313,58 +319,59 @@ void print_stats(tamagotchi& tama, bool clear = true) {
     clearScreen();
   }
 
+  // For some ungodly reason, taking these out of the if statement breaks it
   if (true) {
       char happy[12];
       snprintf(happy, sizeof(happy), "Happy: %d%%", tama.happy);
       printText(happy, false, 0, 35);
 
-    }
-    if (true) {
-      char hunger[12];
-      snprintf(hunger, sizeof(hunger), "Hunger: %d%%", tama.hunger);
-      printText(hunger, false, 0, 45);
+  }
+  if (true) {
+    char hunger[12];
+    snprintf(hunger, sizeof(hunger), "Hunger: %d%%", tama.hunger);
+    printText(hunger, false, 0, 45);
 
-    } 
-    if (true) {
-      char discipline[16];
-      snprintf(discipline, sizeof(discipline), "Discipline: %d%%", tama.discipline);
-      printText(discipline, false, 0, 55);
+  } 
+  if (true) {
+    char discipline[16];
+    snprintf(discipline, sizeof(discipline), "Discipline: %d%%", tama.discipline);
+    printText(discipline, false, 0, 55);
 
-    } 
-    if (true) {
-      char level[12];
-      snprintf(level, sizeof(level), "%d", tama.level);
-      printText(level, false, 20, 20);
+  } 
+  if (true) {
+    char level[12];
+    snprintf(level, sizeof(level), "%d", tama.level);
+    printText(level, false, 20, 20);
 
-    } 
+  } 
     
-    // else if (jiv.health != ohealth) {
-    //   // Serial.println("Health");
-    //   ohealth = jiv.health;
-    //   if (jiv.health) {
-    //     // Healthy
-    //   } else {
-    //     // Not healthy
-    //   }
-    // } else if (jiv.soiled != osoiled) {
-    //   // Serial.println("Soiled");
-    //   osoiled = jiv.soiled;
+  // else if (jiv.health != ohealth) {
+  //   // Serial.println("Health");
+  //   ohealth = jiv.health;
+  //   if (jiv.health) {
+  //     // Healthy
+  //   } else {
+  //     // Not healthy
+  //   }
+  // } else if (jiv.soiled != osoiled) {
+  //   // Serial.println("Soiled");
+  //   osoiled = jiv.soiled;
 
-    //   if (jiv.soiled) {
-    //     // Soiled
-    //   } else {
-    //     // Not Soiled
-    //   }
-    // } else if (jiv.misbehave != omisbehave) {
-    //   // Serial.println("Misbehave");
-    //   omisbehave = jiv.misbehave;
+  //   if (jiv.soiled) {
+  //     // Soiled
+  //   } else {
+  //     // Not Soiled
+  //   }
+  // } else if (jiv.misbehave != omisbehave) {
+  //   // Serial.println("Misbehave");
+  //   omisbehave = jiv.misbehave;
 
-    //   if (jiv.misbehave){
-    //     // Misbehaving
-    //   } else {
-    //     // Not misbehaving
-    //   }
-    // }
+  //   if (jiv.misbehave){
+  //     // Misbehaving
+  //   } else {
+  //     // Not misbehaving
+  //   }
+  // }
 }
 
 /**
@@ -704,10 +711,11 @@ void level_up(tamagotchi& tama) {
     check_bal(tama);
     changed = true;
   } else {
-    print_f_text(F("Jiv is not able to be levelled up :("), true, 0, 30);
+    print_f_text(F("Jiv is not able to be"), true, 0, 30);
+    print_f_text(F("leveled up :("), false, 20, 40);
   }
 
-  print_f_text(F("C to continue"), 0, 60);
+  print_f_text(F("C to continue"), 0, 50);
   while (digitalRead(buttonC) == HIGH) {
 
   }
@@ -760,35 +768,29 @@ void idle_ani(tamagotchi& tama) {
 }
 
 /**
+ * Button Interrupt
+ * Gets called when the wake button is pressed
+ */
+void sleep_wake() {
+  sleep_disable();
+  wdt_disable();
+  sleep_tama = false;
+  detachInterrupt(digitalPinToInterrupt(buttonA));
+}
+
+/**
  * Sleep Function
  * Puts the arduino into low power mode, so that a potential connected battery doesn't get drained
  */
-void doSleep() {
-  // Disable the ADC (Analog to digital converter, pins A0 [14] to A5 [19])
+void doSleep(tamagotchi& tama) {
+  u8g2.setPowerSave(1);
 	static byte prevADCSRA = ADCSRA;
 	ADCSRA = 0;
-
-	/* Set the type of sleep mode we want. Can be one of (in order of power saving):
-	 SLEEP_MODE_IDLE (Timer 0 will wake up every millisecond to keep millis running)
-	 SLEEP_MODE_ADC
-	 SLEEP_MODE_PWR_SAVE (TIMER 2 keeps running)
-	 SLEEP_MODE_EXT_STANDBY
-	 SLEEP_MODE_STANDBY (Oscillator keeps running, makes for faster wake-up)
-	 SLEEP_MODE_PWR_DOWN (Deep sleep)
-	 */
 	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
-	sleep_enable()
-	;
+	sleep_enable();
 
-  // 8 seconds, (30 min * 60s)/8s = 225 loops
-	while (sleepCnt < 38) {
-
-		// Turn of Brown Out Detection (low voltage). This is automatically re-enabled upon timer interrupt
-		sleep_bod_disable();
-
-		// Ensure we can wake up again by first disabling interrupts (temporarily) so
-		// the wakeISR does not run before we are asleep and then prevent interrupts,
-		// and then defining the ISR (Interrupt Service Routine) to run when poked awake by the timer
+  while (true) {
+		sleep_bod_disable(); // automatically re-enabled with timer
 		noInterrupts();
 
 		// clear various "reset" flags
@@ -796,33 +798,40 @@ void doSleep() {
 		WDTCSR = bit (WDCE) | bit(WDE); // set interrupt mode and an interval
 		WDTCSR = bit (WDIE) | bit(WDP3) | bit(WDP0); // set WDIE, and 8 second delay https://microcontrollerslab.com/arduino-watchdog-timer-tutorial/
 		wdt_reset();
-
-		// Send a message just to show we are about to sleep
-    Serial.print(".");
-		Serial.flush();
-
-		// Allow interrupts now
+    
+    // Configure wake button
+    attachInterrupt(digitalPinToInterrupt(buttonA), sleep_wake, LOW);
+		
+    Serial.flush();
 		interrupts();
-
-		// And enter sleep mode as set above
 		sleep_cpu();
+
+    if (!sleep_tama) {
+      last_action = rtc.now();
+      break;
+    }
+
+    now = rtc.now();
+    if (night_sleep) {
+      if ((now.unixtime() - then.unixtime()) > 32400) {
+        // Sleep through the night (9 hours, 32400 seconds)
+        sleep_tama = false;
+        night_sleep = false;
+      }
+    } else {
+      if (now.unixtime() - then.unixtime() > 1800) {
+        // Pass time every 30 minutes (1800s)
+        passTime(tama);
+        write_eeprom(tama, false);
+        changed = true;
+        then = now;
+      }
+    }
 	}
 
-	// --------------------------------------------------------
-	// µController is now asleep until woken up by an interrupt
-	// --------------------------------------------------------
-
-	// Prevent sleep mode, so we don't enter it again, except deliberately, by code
 	sleep_disable();
-
-	// Wakes up at this point when timer wakes up µC
-	Serial.print("-");
-
-	// Reset sleep counter
-	sleepCnt = 0;
-
-	// Re-enable ADC if it was previously running
 	ADCSRA = prevADCSRA;
+  u8g2.setPowerSave(0);
 }
 
 /**
@@ -861,28 +870,27 @@ void setup() {
     }
   }
   clearScreen();
-  
+
   then = rtc.now();
+  last_action = rtc.now();
 }
 
 /**
  * Main Loop
  * Arduino Managed, loops indefinitely after the setup function has completed
  *
- * TODO: Write tama values to EEPROM
- * TODO: Automatic low-power mode/sleep
- * TODO: Decrement stats while asleep
+ * TODO: Add remaining display icons (health, bad behavior, poop)
  */
 void loop() {
   now = rtc.now();
 
-  if (((now.unixtime() - jiv.birth.unixtime()) > 18000) && (jiv.level == 1)) {
+  if (((now.unixtime() - jiv.birth.unixtime()) > 18000) && (jiv.level == 1) && !jiv.soiled && jiv.health && !jiv.misbehave && (jiv.hunger > 75) && (jiv.happy > 75)) {
     // Level 1 -> Level 2, 5 Hours
     level_up(jiv);
-  } else if (((now.unixtime() - jiv.birth.unixtime()) > 86400) && (jiv.level == 2)) {
+  } else if (((now.unixtime() - jiv.birth.unixtime()) > 86400) && (jiv.level == 2) && !jiv.soiled && jiv.health && !jiv.misbehave && (jiv.hunger > 75) && (jiv.happy > 75)) {
     // Level 2 -> Level 3, 1 Day
     level_up(jiv);
-  } else if (((now.unixtime() - jiv.birth.unixtime()) > 172800) && (jiv.level == 3)) {
+  } else if (((now.unixtime() - jiv.birth.unixtime()) > 172800) && (jiv.level == 3) && !jiv.soiled && jiv.health && !jiv.misbehave && (jiv.hunger > 75) && (jiv.happy > 75)) {
     // Level 3 -> Level 4, 2 Days
     level_up(jiv);
   }
@@ -893,7 +901,7 @@ void loop() {
     printText(activities[i], true, 25, 25);
     while (digitalRead(buttonC) == HIGH) {
       if (digitalRead(buttonB) == LOW) {
-        if (i == 5) {
+        if (i == 6) {
           i = 0;
         } else {
           i++;
@@ -902,7 +910,7 @@ void loop() {
         delay(500);
       } else if (digitalRead(buttonA) == LOW) {
         if (i == 0) {
-          i = 5;
+          i = 6;
         } else {
           i--;
         }
@@ -929,8 +937,13 @@ void loop() {
       case 5:
         feed_tama = true;
         break;
+      case 6:
+        sleep_tama = true;
+        night_sleep = true;
+        break;
     }
     clearScreen();
+    last_action = now;
   }
 
   if ((now.unixtime() - then.unixtime()) > 1800) {
@@ -939,6 +952,13 @@ void loop() {
     then = now;
   }
   
+  if ((now.unixtime() - last_action.unixtime()) > 300) {
+    // Enter low power mode after 5 idle minutes (300s) or if requested
+    sleep_tama = true;
+    doSleep(jiv);
+    now = rtc.now();
+  }
+
   if (over_under) {
     overUnder(jiv);
     over_under = false;
@@ -975,12 +995,6 @@ void loop() {
 
 // When WatchDog timer causes µC to wake it comes here
 ISR (WDT_vect) {
-
 	// Turn off watchdog, we don't want it to do anything (like resetting this sketch)
 	wdt_disable();
-
-	// Increment the WDT interrupt count
-	sleepCnt++;
-
-	// Now we continue running the main Loop() just after we went to sleep
 }
