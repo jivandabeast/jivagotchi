@@ -839,7 +839,7 @@ void setup() {
   u8g2.clearBuffer();
 
   if (! rtc.begin()) {
-  Serial.println("Couldn't find RTC");
+  Serial.println(F("Couldn't find RTC"));
   Serial.flush();
   while (1) delay(10);
   }
@@ -848,6 +848,7 @@ void setup() {
   pinMode(buttonB, INPUT_PULLUP);
   pinMode(buttonC, INPUT_PULLUP);
 
+  u8g2.setFont(u8g2_font_ncenB08_tr);
   print_f_text(F("A: Load Saved Tama"), true, 10, 10);
   print_f_text(F("B: New Tama"), false, 10, 20);
   while (true) {
@@ -860,7 +861,7 @@ void setup() {
     }
   }
   clearScreen();
-
+  
   then = rtc.now();
 }
 
@@ -960,10 +961,10 @@ void loop() {
     idle_ani(jiv);
 
     if (changed) {
+      write_eeprom(jiv);
       print_stats(jiv);
       changed = false;
       jiv.print();
-      write_eeprom(jiv);
     }
   }
 }
