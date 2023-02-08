@@ -41,11 +41,11 @@ class tamagotchi {
     tamagotchi() {
       hunger = 50;
       happy = 50;
-      discipline = 100;
+      discipline = 0;
       level = 1;
       health = true;
       soiled = true;
-      misbehave = true;
+      misbehave = false;
       snacks_fed = 0;
     }
 
@@ -63,6 +63,8 @@ class tamagotchi {
       Serial.println(level);
       Serial.print(F("Soiled: "));
       Serial.println(soiled);
+      Serial.print(F("Birthday: "));
+      Serial.println(birth.unixtime());
     }
 };
 
@@ -273,6 +275,33 @@ void print_f_text(const __FlashStringHelper* text, bool clear = true, int posx =
 }
 
 /**
+ * Write tama stats to EEPROM
+ * 
+ * @param   tama    The tama to be saved
+ */
+void write_eeprom(tamagotchi& tama) {
+  int tama_address = 0;
+  print_f_text(F("Saving..."), true, 20, 20);
+  EEPROM.put(tama_address, tama);
+  delay(300);
+  clearScreen();
+}
+
+/**
+ * Read tama stats from EEPROM
+ * 
+ * @param   tama    The tama to be read into
+ */
+void read_eeprom(tamagotchi& tama) {
+  int tama_address = 0;
+  print_f_text(F("Loading..."), true, 20, 20);
+  EEPROM.get(tama_address, tama);
+  tama.print();
+  delay(300);
+  clearScreen();
+}
+
+/**
  * Print Tama Stats
  * Displays tama data on the screen
  * 
@@ -393,7 +422,7 @@ void passTime(tamagotchi& tama) {
 
   if ((tama.happy <= 0) || (tama.hunger <= 0) || (tama.snacks_fed > 5)) {
     // Make tama sick if its happiness or hunger is 0, or if it ate too many snacks
-    tama.health == false;
+    tama.health = false;
   } else if ((random(tama.discipline) == tama.discipline) && (tama.discipline < 100)) {
     // Misbehave change based on the discipline level
     tama.misbehave = true;
@@ -815,12 +844,24 @@ void setup() {
   while (1) delay(10);
   }
 
-  jiv.birth = rtc.now();
-  then = rtc.now();
-
   pinMode(buttonA, INPUT_PULLUP);
   pinMode(buttonB, INPUT_PULLUP);
   pinMode(buttonC, INPUT_PULLUP);
+
+  print_f_text(F("A: Load Saved Tama"), true, 10, 10);
+  print_f_text(F("B: New Tama"), false, 10, 20);
+  while (true) {
+    if (digitalRead(buttonA) == LOW) {
+      read_eeprom(jiv);
+      break;
+    } else if (digitalRead(buttonB) == LOW) {
+      jiv.birth = rtc.now();
+      break;
+    }
+  }
+  clearScreen();
+
+  then = rtc.now();
 }
 
 /**
@@ -835,7 +876,7 @@ void loop() {
   now = rtc.now();
 
   if (((now.unixtime() - jiv.birth.unixtime()) > 18000) && (jiv.level == 1)) {
-    // Level 1 -> Level 2, 4 Hours
+    // Level 1 -> Level 2, 5 Hours
     level_up(jiv);
   } else if (((now.unixtime() - jiv.birth.unixtime()) > 86400) && (jiv.level == 2)) {
     // Level 2 -> Level 3, 1 Day
@@ -894,6 +935,7 @@ void loop() {
   if ((now.unixtime() - then.unixtime()) > 1800) {
     // Pass time every 30 minutes
     passTime(jiv);
+    then = now;
   }
   
   if (over_under) {
@@ -916,15 +958,14 @@ void loop() {
     feed_tama = false;
   } else {
     idle_ani(jiv);
-    jiv.print();
 
     if (changed) {
       print_stats(jiv);
       changed = false;
+      jiv.print();
+      write_eeprom(jiv);
     }
   }
-
-  then = now;
 }
 
 /**
