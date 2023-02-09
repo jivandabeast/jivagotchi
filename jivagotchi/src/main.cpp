@@ -345,33 +345,17 @@ void print_stats(tamagotchi& tama, bool clear = true) {
 
   } 
     
-  // else if (jiv.health != ohealth) {
-  //   // Serial.println("Health");
-  //   ohealth = jiv.health;
-  //   if (jiv.health) {
-  //     // Healthy
-  //   } else {
-  //     // Not healthy
-  //   }
-  // } else if (jiv.soiled != osoiled) {
-  //   // Serial.println("Soiled");
-  //   osoiled = jiv.soiled;
-
-  //   if (jiv.soiled) {
-  //     // Soiled
-  //   } else {
-  //     // Not Soiled
-  //   }
-  // } else if (jiv.misbehave != omisbehave) {
-  //   // Serial.println("Misbehave");
-  //   omisbehave = jiv.misbehave;
-
-  //   if (jiv.misbehave){
-  //     // Misbehaving
-  //   } else {
-  //     // Not misbehaving
-  //   }
-  // }
+  if (!jiv.health) {
+    print_f_text(F(":("), false, 30, 20);
+  } 
+  
+  if (jiv.soiled) {
+    print_f_text(F("O.o"), false, 45, 20);
+  }
+  
+  if (jiv.misbehave) {
+    print_f_text(F(">:)"), false, 70, 20);
+  }
 }
 
 /**
@@ -416,13 +400,13 @@ void check_bal(tamagotchi& tama) {
  */
 void passTime(tamagotchi& tama) {
   if (tama.soiled) {
-    // if tama pooped, make it sick 25% of the time
-    if (random(100) > 75) {
+    // if tama pooped, make it sick 50% of the time
+    if (random(100) > 50) {
       tama.health = false;
     }
   } else {
-    // otherwise make it poop, 10% of the time
-    if (random(100) > 90) {
+    // otherwise make it poop, 25% of the time
+    if (random(100) > 75) {
       tama.soiled = true;
     }
   }
@@ -664,23 +648,23 @@ void clean(tamagotchi& tama) {
  */
 void feed(tamagotchi& tama) {
   if (tama.misbehave) {
-    print_f_text(F("Tama refuses to eat!"), true, 10, 10);
+    print_f_text(F("Jiv refuses to eat!"), true, 10, 10);
   } else {
-    print_f_text(F("Feed Tama:"), true, 10, 20);
+    print_f_text(F("Feed Jiv:"), true, 10, 20);
     print_f_text(F("A: Meal"), false, 10, 30);
     print_f_text(F("B: Snack"), false, 10, 40);
     while (digitalRead(buttonC) == HIGH) {
       if (digitalRead(buttonA) == LOW) {
         tama.hunger += 20;
         tama.snacks_fed = 0;
-        print_f_text(F("Tama Fed!"), true, 10, 10);
+        print_f_text(F("Jiv Fed!"), true, 10, 10);
         break;
       }
       if (digitalRead(buttonB) == LOW) {
         tama.hunger += 10;
         tama.snacks_fed += 1;
         tama.happy += 10;
-        print_f_text(F("Tama Fed"), true, 20, 10);
+        print_f_text(F("Jiv Fed"), true, 20, 10);
         break;
       }
     }
@@ -879,7 +863,6 @@ void setup() {
  * Main Loop
  * Arduino Managed, loops indefinitely after the setup function has completed
  *
- * TODO: Add remaining display icons (health, bad behavior, poop)
  */
 void loop() {
   now = rtc.now();
