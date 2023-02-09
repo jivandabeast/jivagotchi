@@ -960,6 +960,9 @@ void loop() {
   } else if (feed_tama) {
     feed(jiv);
     feed_tama = false;
+  } else if (night_sleep && sleep_tama) {
+    doSleep(jiv);
+    now = rtc.now();
   } else {
     idle_ani(jiv);
 
